@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Infinite Scrolling of Photos</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #page {
+      display: grid;
+      grid-template-columns: auto auto auto auto;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .img {
+      width: 100%;
+      height: 400px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      transition: width 0.3s ease, height 0.3s ease;
+    }
+
+    .fullscreen-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .fullscreen-img {
+      max-width: 90%;
+      max-height: 100%;
+    }
+
+    .author-title {
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      font-size: 14px;
+      padding: 5px 10px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      z-index: 9998;
+      display: none; /* Initially hidden */
+    }
+
+    .button {
+      display: none;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      z-index: 9999;
+    }
+
+    @media screen and (max-width: 1200px) {
+      #page {
+        grid-template-columns: auto auto auto auto;
+      }
+    }
+@media screen and (max-width: 960px) {
+    .img{
+    height: 200px;
+}}
+  </style>
+</head>
+<body>
+  <div id="page"></div>
+  <script>
+    let page = 1;
+    const pageElement = document.getElementById("page");
+    let fullScreenImageContainer; 
+    let isFullScreen = false;
+  
+    async function fetching() {
+        const res = await fetch(`https://picsum.photos/v2/list?page=${page}`);
+      const img = await res.json();
+      img.forEach((element) => {
+        const imageContainer = document.createElement("div"); 
+        const image = document.createElement("img");
+        const author = document.createElement("div");
+        const downloadButton = document.createElement("button"); 
+        downloadButton.innerText = "Download";
+        downloadButton.classList.add("button");
+        image.src = element.download_url;
+        image.classList.add("img");
+        imageContainer.appendChild(image);
+        author.classList.add("author-title");
+        author.innerText = `Author: ${element.author}`;
+        imageContainer.appendChild(author);
+        imageContainer.appendChild(downloadButton);
+        pageElement.appendChild(imageContainer);
+        imageContainer.addEventListener("click", () => full(imageContainer, author, downloadButton));
+        downloadButton.addEventListener("click", (event) => {
+          event.stopPropagation(); 
+          download(image.src);
+        });
+      });
+      page++;
+    }
+  
+    function scroll() {
+      const height = window.innerHeight;
+      const scrolly = window.screenY || window.pageYOffset;
+      const browser = document.documentElement.scrollHeight;
+      return height + scrolly >= browser;
+    }
+  
+    function check() {
+      if (scroll()) {
+        fetching();
+      }
+    }
+  
+    function full(imageContainer, author, downloadButton) { 
+      const image = imageContainer.firstChild;
+      if (!isFullScreen) {
+        const images = document.getElementsByClassName("img");
+        for (let i = 0; i < images.length; i++) {
+          if (images[i] !== image) {
+            images[i].style.pointerEvents = "none";
+          }
+        }
+        fullScreenImageContainer = imageContainer; 
+        fullScreenImageContainer.classList.add("fullscreen-container");
+        isFullScreen = true;
+        author.style.display = "block";
+        downloadButton.style.display = "block";
+        imageContainer.style.position = "fixed";
+        imageContainer.style.top = 0;
+        imageContainer.style.left = 0;
+        imageContainer.style.width = "100%";
+        imageContainer.style.height = "100%";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        document.body.appendChild(imageContainer); 
+      } else {
+        const images = document.getElementsByClassName("img");
+        for (let i = 0; i < images.length; i++) {
+          images[i].style.pointerEvents = "auto";
+        }
+        fullScreenImageContainer.classList.remove("fullscreen-container");
+        isFullScreen = false;
+        author.style.display = "none";
+        downloadButton.style.display = "none";
+        imageContainer.style.position = "static";
+        imageContainer.style.width = "100%";
+        imageContainer.style.height = "600px";
+        pageElement.appendChild(imageContainer); 
+      }
+    }
+  
+    async function download(imageSrc) {
+      const response = await fetch(imageSrc);
+      const blobImage = await response.blob();
+      const href = URL.createObjectURL(blobImage);
+  
+      const anchorElement = document.createElement('a');
+      anchorElement.href = href;
+      anchorElement.download = 'image.jpg';
+  
+      document.body.appendChild(anchorElement);
+      anchorElement.click();
+  
+      document.body.removeChild(anchorElement);
+      window.URL.revokeObjectURL(href);
+    }
+  
+    window.addEventListener("scroll", check);
+    fetching();
+  </script>
+</body>
+</html>
